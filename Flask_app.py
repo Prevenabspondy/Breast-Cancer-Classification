@@ -1,9 +1,7 @@
 import os
-# import uuid
+import uuid
 
-# from flask import Flask, render_template, request, redirect, url_for
-import gradio as gr
-import tempfile
+from flask import Flask, render_template, request, redirect, url_for
 import torch
 import torch.nn.functional as F
 from torchvision import transforms
@@ -21,7 +19,17 @@ DEVICE = cfg.device  # "cuda" or "cpu"
 MODEL_PATH = cfg.model_path  # efficientnet_cbam_breast_cancer.pth
 CLASS_NAMES = ["benign", "malignant"]  # must match training order
 
+UPLOAD_FOLDER = "uploads"
+RESULT_FOLDER = "static/results"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(RESULT_FOLDER, exist_ok=True)
+
+# ---------------- FLASK APP ---------------- #
+
+app = Flask(__name__)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # ---------------- LOAD MODEL ---------------- #
 
@@ -46,6 +54,9 @@ transform = transforms.Compose([
 
 
 # ---------------- UTILS ---------------- #
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def generate_explanation(input_image_path: str, result_image_path: str):
@@ -112,62 +123,50 @@ def generate_explanation(input_image_path: str, result_image_path: str):
     return pred_class, probs
 
 
-# ---------------- GRADIO FUNCTION ---------------- #
+# ---------------- ROUTES ---------------- #
 
-def predict(image):
-    if image is None:
-        return None, "Please upload an image."
+@app.route("/", methods=["GET", "POST"])
+def index():
+    diagnosis = None
+    probs = None
+    result_image = None
 
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_input:
-        image.save(temp_input.name)
-        input_path = temp_input.name
+    if request.method == "POST":
+        if "file" not in request.files:
+            return redirect(request.url)
 
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_output:
-        result_path = temp_output.name
+        file = request.files["file"]
 
-    diagnosis, probs = generate_explanation(input_path, result_path)
+        if file.filename == "":
+            return redirect(request.url)
 
-    confidence = ""
-    for i, cls in enumerate(CLASS_NAMES):
-        confidence += f"{cls.capitalize()}: {probs[i] * 100:.2f}%\n"
+        if file and allowed_file(file.filename):
+            # unique file names
+            input_filename = f"{uuid.uuid4().hex}.png"
+            input_path = os.path.join(app.config["UPLOAD_FOLDER"], input_filename)
 
-    with Image.open(result_path) as img:
-        result_img = img.copy()
+            result_filename = f"{uuid.uuid4().hex}.png"
+            result_path = os.path.join(RESULT_FOLDER, result_filename)
 
-    # Delete temporary files
-    os.remove(input_path)
-    os.remove(result_path)
+            file.save(input_path)
 
-    return result_img, f"Prediction: {diagnosis.upper()}\n\n{confidence}"
+            # generate explanation image + get prediction
+            diagnosis, probs = generate_explanation(input_path, result_path)
 
+            # 🔹 convert numpy array to list for Jinja template
+            if probs is not None:
+                probs = probs.tolist()
 
-# ---------------- GRADIO UI ---------------- #
+            result_image = result_filename  # for HTML
 
-with gr.Blocks(title="Breast Cancer Detection") as demo:
-
-    gr.Markdown("# Breast Cancer Detection using EfficientNet-B0 + CBAM + Grad-CAM")
-
-    with gr.Row():
-
-        input_image = gr.Image(type="pil", label="Upload Image")
-
-        output_image = gr.Image(label="CBAM + Grad-CAM")
-
-    output_text = gr.Textbox(
-        label="Prediction",
-        lines=6
+    return render_template(
+        "index.html",
+        diagnosis=diagnosis,
+        probs=probs,
+        class_names=CLASS_NAMES,
+        result_image=result_image
     )
 
-    predict_btn = gr.Button("Predict")
 
-    predict_btn.click(
-        fn=predict,
-        inputs=input_image,
-        outputs=[output_image, output_text]
-    )
-
-port = int(os.environ.get("PORT", 7860))
-demo.launch(
-    server_name="0.0.0.0",
-    server_port=port
-)
+if __name__ == "__main__":
+    app.run(debug=True)
