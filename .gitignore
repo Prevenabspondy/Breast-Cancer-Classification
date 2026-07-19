@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environment
+.venv/
+venv/
+
+# Dataset
+data/
+raw_data/
+
+# Generated Files
+uploads/
+evaluation_results/
+static/results/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

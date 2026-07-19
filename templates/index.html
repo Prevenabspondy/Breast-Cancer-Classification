@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Breast Cancer Diagnosis – EfficientNet + CBAM + Grad-CAM</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 900px;
+      padding: 24px;
+      margin: 24px;
+      background: #020617;
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #e5e7eb;
+    }
+    p.subtitle {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+    form {
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .file-input {
+      padding: 10px;
+      background: #020617;
+      border-radius: 10px;
+      border: 1px dashed #4b5563;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+    .btn {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(to right, #4f46e5, #06b6d4);
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      align-self: flex-start;
+      box-shadow: 0 10px 30px rgba(79, 70, 229, 0.5);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.08s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 40px rgba(79, 70, 229, 0.7);
+      opacity: 0.95;
+    }
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5);
+    }
+    .results {
+      margin-top: 1.5rem;
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .diagnosis-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .diagnosis-benign {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(74, 222, 128, 0.4);
+    }
+    .diagnosis-malignant {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(248, 113, 113, 0.5);
+    }
+    .probs {
+      font-size: 0.85rem;
+      color: #e5e7eb;
+    }
+    .probs span {
+      display: inline-block;
+      margin-right: 14px;
+    }
+    .img-wrapper {
+      margin-top: 10px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(75, 85, 99, 0.7);
+      background: #020617;
+    }
+    .img-wrapper img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .footer {
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .footer span {
+      color: #a5b4fc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Breast Cancer Diagnosis – Interpretable AI</h1>
+    <p class="subtitle">
+      EfficientNet + CBAM + Grad-CAM on histopathological images.<br />
+      Upload a biopsy image to see the predicted diagnosis with attention maps.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data">
+      <label for="file">Select an image (PNG/JPG):</label>
+      <input class="file-input" type="file" name="file" id="file" required />
+      <button class="btn" type="submit">Run Diagnosis</button>
+    </form>
+
+    {% if diagnosis %}
+    <div class="results">
+      <div>
+        {% if diagnosis == "benign" %}
+        <div class="diagnosis-tag diagnosis-benign">
+          ● Diagnosis: BENIGN (No Cancer)
+        </div>
+        {% else %}
+        <div class="diagnosis-tag diagnosis-malignant">
+          ● Diagnosis: MALIGNANT (Cancer Detected)
+        </div>
+        {% endif %}
+      </div>
+
+      {% if probs is not none and class_names %}
+      <div class="probs">
+        <strong>Confidence:</strong><br />
+        {% for i in range(class_names|length) %}
+          <span>{{ class_names[i] }}: {{ "%.2f"|format(probs[i]) }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if result_image %}
+      <div class="img-wrapper">
+        <img src="{{ url_for('static', filename='results/' ~ result_image) }}" alt="Attention and Grad-CAM Visualization" />
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+      <span>Note:</span> This tool is for academic and research demonstration only and does not replace clinical diagnosis.
+    </div>
+  </div>
+</body>
+</html>
