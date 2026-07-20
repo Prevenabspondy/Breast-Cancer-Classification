@@ -1,7 +1,7 @@
-torch
-torchvision
 gradio
 numpy
 matplotlib
 pillow
 scikit-learn
+torch==2.7.1
+torchvision==0.22.1
