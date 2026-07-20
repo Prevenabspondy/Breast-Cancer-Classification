@@ -14,6 +14,11 @@ from PIL import Image
 # Import your model, GradCAM, and Config from the training file
 from breast_cancer_efficientnet_cbam_gradcam import EfficientNetCBAMNet, GradCAM, Config
 
+print("========== APP STARTED ==========")
+
+print("Loading Config...")
+
+
 # ---------------- CONFIG ---------------- #
 
 cfg = Config()
@@ -21,20 +26,33 @@ DEVICE = cfg.device  # "cuda" or "cpu"
 MODEL_PATH = cfg.model_path  # efficientnet_cbam_breast_cancer.pth
 CLASS_NAMES = ["benign", "malignant"]  # must match training order
 
+print("Config Loaded")
+
 
 
 # ---------------- LOAD MODEL ---------------- #
 
 print("Loading model...")
 model = EfficientNetCBAMNet(num_classes=cfg.num_classes)
+print("Model Created")
+print("Loading weights...")
 state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
+print("Weights Loaded")
+print("Loading state_dict into model...")
 model.load_state_dict(state_dict)
+print("state_dict Loaded")
+print("Moving model to device...")
 model.to(DEVICE)
+print("Model moved")
+print("Setting model to eval...")
 model.eval()
+print("Model Ready")
 
 # Grad-CAM target layer: last EfficientNet feature block
+print("Creating GradCAM...")
 target_layer = model.backbone_features[-1]
 gradcam = GradCAM(model, target_layer)
+print("GradCAM Ready")
 
 # Transform similar to validation / test
 transform = transforms.Compose([
@@ -43,7 +61,6 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406],
                          [0.229, 0.224, 0.225])
 ])
-
 
 # ---------------- UTILS ---------------- #
 
@@ -142,6 +159,7 @@ def predict(image):
 
 
 # ---------------- GRADIO UI ---------------- #
+print("Creating Gradio UI...")
 
 with gr.Blocks(title="Breast Cancer Detection") as demo:
 
@@ -167,6 +185,8 @@ with gr.Blocks(title="Breast Cancer Detection") as demo:
     )
 
 port = int(os.environ.get("PORT", 7860))
+print("Launching Gradio...")
+print("Gradio Started")
 demo.launch(
     server_name="0.0.0.0",
     server_port=port
